@@ -1,7 +1,6 @@
 
 # R code for "A multi-pollutant approach to estimate the causal effects of air pollution mixtures on overall mortality in a large prospective cohort of Dutch individuals"
 
-#comment
 Packages <- c("car", "mvGPS", "knitr", "cobalt", "WeightIt", "plsRglm", "beepr", "haven", "dplyr", "survival", "tidyverse", "data.table", "readxl", "bkmr", "qgraph", "gWQS", "qgcomp", "corrplot", "cluster","factoextra","gridExtra","table1","stargazer","gbm","fastDummies")
 lapply(Packages, library, character.only = TRUE)
 
