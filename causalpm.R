@@ -129,7 +129,7 @@ w <- trim(w, at = 0.99, lower = TRUE)
 lm1 <- glm(vitalstatus~no2,data=lifework, weights = w, family="binomial")
 
 ### mvGPS (excluding PM25abs), trim at 0.99 / 0.97 / 0.95
-## mvGPS was delevoped by Justin Williams (https://github.com/williazo) to estimate causal effects for multivariate continuous exposures. Weights are formed assuming a multivariate normal distribution for the simultaneous exposures. The mvGPS was directly designed for continuous confounders and it easily accomodates binary and categorical confounders as long as they are included as dummy variables in the design matrix.
+## mvGPS was delevoped by Justin Williams (https://github.com/williazo) to estimate causal effects for multivariate continuous exposures. Weights are formed assuming a multivariate normal distribution for the simultaneous exposures. The mvGPS was designed for continuous confounders and it easily accomodates binary and categorical confounders as long as they are included as dummy variables in the design matrix.
 ## mvGPS version 1.2.1 (2021-10-16) was used in the current study.
 
 airpollutants <- c("no2", "pm25", "pm10", "op_dtt")
