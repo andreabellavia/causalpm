@@ -152,3 +152,63 @@ bal_summary <-data.frame(bal_summary, ESS=c(bal_results$ess, nrow(D)))
 #adding in ESS with last value representing the unweighted case
 bal_summary <- bal_summary[order(bal_summary$max_cor), ]
 bal_summary
+
+
+# To integrate binary/categorical confounders in the mvGPS function, an alternative option that might provide more stable estimates would involve restoring the intercept into the denominator of the (full conditional) generalized propensity score (lines 133 and 148 https://github.com/williazo/mvGPS/blob/babf41bf51672b722e5b987a83d624ffcc6d91c8/R/mvGPS.R) as follows:
+
+mvGPS <- function(D, C, common=FALSE, trim_w=FALSE, trim_quantile=0.99){
+    check_result <- D_C_check(D, C, common)
+    assign("D", check_result$D)
+    assign("C", check_result$C)
+
+    m <- ncol(D)
+    
+    for(i in seq_len(m)){
+        if(i==1){
+            #marginal densities factorized
+            d_1 <- lm(D[, i] ~ 1)
+            d_1_mu <- coef(d_1)
+            d_1_sigma <- summary(d_1)$sigma
+            f_d_1 <- dnorm(D[, i], mean=d_1_mu, sd=d_1_sigma)
+
+            #generalized propensity score
+            gps_d_1 <- lm(D[, i] ~ C[[i]] - 1) # change into gps_d_1 <- lm(D[, i] ~ C[[i]])
+            gps_1_beta <- coef(gps_d_1)
+            gps_1_Xb <- model.matrix(gps_d_1) %*% gps_1_beta
+            gps_1_sigma <- summary(gps_d_1)$sigma
+            f_gps_1 <- dnorm(D[, i], mean=gps_1_Xb, sd=gps_1_sigma)
+        } else {
+            cond_dens <- lapply(seq_len(m - 1) + 1, function(x){
+                #full conditional marginal densities
+                d_x <- lm(D[, x] ~ D[, seq_len(x-1)])
+                d_x_beta <- coef(d_x)
+                d_x_Xb <- model.matrix(d_x) %*% d_x_beta
+                d_x_sigma <- summary(d_x)$sigma
+                f_d_x <- dnorm(D[, x], mean=d_x_Xb, sd=d_x_sigma)
+
+                #full conditional generalized propensity scores
+                gps_x <- lm(D[, x] ~ D[, seq_len(x-1)] + C[[x]] - 1) # change into gps_x <- lm(D[, x] ~ D[, seq_len(x-1)] + C[[x]])
+                gps_x_beta <- coef(gps_x)
+                gps_x_Xb <- model.matrix(gps_x) %*% gps_x_beta
+                gps_x_sigma <- summary(gps_x)$sigma
+                f_gps_x <- dnorm(D[, x], gps_x_Xb, gps_x_sigma)
+
+                return(list(marg=f_d_x, gps=f_gps_x))
+            })
+        }
+    }
+    cond_results <- unlist(cond_dens, recursive=FALSE)
+    num_args <- cond_results[which(names(cond_results)=="marg")]
+    num_args[["marg_1"]] <- f_d_1
+    denom_args <- cond_results[which(names(cond_results)=="gps")]
+    denom_args[["gps_1"]] <- f_gps_1
+    
+    score <- Reduce("*", denom_args)
+    w <- Reduce("*", num_args)/score
+    if(trim_w==TRUE){
+        #trimming the large weights
+        w <- ifelse(w<quantile(w, trim_quantile), w, quantile(w, trim_quantile))
+    }
+    return(list(score=score, wts=w))
+}
+
