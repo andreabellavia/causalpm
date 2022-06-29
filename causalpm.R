@@ -146,6 +146,7 @@ bias_tbl <- cbind(unadj_OR=exp(unadj_mod$coefficients), unadj_95CI=exp(confint(u
 bias_tbl
 hist(w, breaks = 100)
 bal_results <- bal(model_list=c("mvGPS","PS"), D=D, C=C, common = TRUE, trim_w = TRUE, trim_quantile=0.99)
+#assessing balance between exposures and confounders
 bal_summary <- bal_results$bal_metrics 
 #contains overall summary statistics with respect to balance
 bal_summary <-data.frame(bal_summary, ESS=c(bal_results$ess, nrow(D)))
@@ -212,3 +213,27 @@ mvGPS <- function(D, C, common=FALSE, trim_w=FALSE, trim_quantile=0.99){
     return(list(score=score, wts=w))
 }
 
+
+## Extra analysis including full set of confounders
+
+airpollutants <- c("no2", "pm25", "pm10", "op_dtt")
+D <- lifework[airpollutants]
+confounders <- c("age","sex_1","education_1","education_2","bsmoking_1","bsmoking_2","balcohol_1","balcohol_2","BMI","CVDdiagnosis_0","NDVI","income","urbanization")
+C <- lifework[confounders]
+out_mvGPS <- mvGPS(D=D, C=C, common = T, trim_w = T, trim_quantile = 0.99)
+summary(out_mvGPS)
+w <- out_mvGPS$w
+dt <- data.frame(lifework$vitalstatus, D)
+mvGPS_mod <- glm(dt$lifework ~ dt$no2+dt$pm25+dt$pm10+dt$op_dtt, data=dt, weights=w, family="binomial")
+unadj_mod <- glm(dt$lifework ~ dt$no2+dt$pm25+dt$pm10+dt$op_dtt, data=dt, family="binomial")
+bias_tbl <- cbind(unadj_OR=exp(unadj_mod$coefficients), unadj_95CI=exp(confint(unadj_mod)), mvGPS_OR=exp(mvGPS_mod$coefficients), mvGPS_95CI=exp(confint(mvGPS_mod)))
+bias_tbl
+hist(w, breaks = 100)
+bal_results <- bal(model_list=c("mvGPS","PS"), D=D, C=C, common = TRUE, trim_w = TRUE, trim_quantile=0.99)
+#assessing balance between exposures and confounders
+bal_summary <- bal_results$bal_metrics 
+#contains overall summary statistics with respect to balance
+bal_summary <-data.frame(bal_summary, ESS=c(bal_results$ess, nrow(D)))
+#adding in ESS with last value representing the unweighted case
+bal_summary <- bal_summary[order(bal_summary$max_cor), ]
+bal_summary
